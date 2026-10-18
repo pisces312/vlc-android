@@ -45,6 +45,8 @@
     <string name="playback_controls">Ovládače prehrávania</string>
     <string name="medialibrary_scan">Skenovanie knižnice s médiami</string>
     <string name="Medialibrary_progress">Aktualizácie procesu skenovania knižnice s médiami</string>
+    <string name="ml_database_warning">Vaša databáza obsahuje zoznam všetkých vašich médií. Bude sa zdieľať s vývojármi VLC</string>
+    <string name="logs_warning">Môže obsahovať údaje o prehraných médiách. Bude sa zdieľať s vývojármi VLC</string>
     <string name="play_from_start">Prehrať od začiatku</string>
     <string name="play_as_audio">Prehrať ako audio</string>
     <string name="play_as_video">Prehrať ako video</string>
@@ -258,11 +260,11 @@
     <string name="remote_keyboard_navigation">Navigovanie pomocou klávesnice</string>
 
     <string name="server_add_title">Pridať nový server do obľúbených</string>
-    <string name="server_domain_hint">Adresa servera (názov domény alebo IP)</string>
-    <string name="server_share_hint">Názov zdieľania v sieti (alebo IP adresa)</string>
+    <string name="server_domain_hint">Adresa servera (názov hostiteľa alebo IP adresa)</string>
+    <string name="server_share_hint">Adresa servera (názov hostiteľa alebo IP adresa)</string>
     <string name="server_folder_hint">Cesta k priečinku (voliteľne)</string>
     <string name="server_username_hint">Meno používateľa</string>
-    <string name="server_servername_hint">Názov servera, kvôli zjednodušeniu</string>
+    <string name="server_servername_hint">Zobrazovaný názov (voliteľne)</string>
     <string name="server_port">Port:</string>
     <string name="login">Prihlasovacie meno</string>
     <string name="password">Heslo</string>
@@ -275,9 +277,10 @@
     <string name="favorite_removed">Odstránené z obľúbených</string>
 
     <string name="streams">Streamy</string>
-    <string name="open_mrl_dialog_msg">Zadajte sieťovú adresu: napr. http://, mms:// alebo rtsp://</string>
-    <string name="invalid_location">Z umiestnenia %1$s nie je možné prehrávanie.</string>
-    <string name="missing_location">Toto médium je uložené na nedostupnom úložisku a nedá sa prehrať.</string>
+    <string name="open_mrl_dialog_msg">Zadajte sieťovú adresu, ako napríklad http://, mms:// alebo rtsp://</string>
+    <string name="invalid_location">Médium na %1$s nemožno prehrať.</string>
+    <string name="font_cache_building">Pripravujú sa písma pre prvé prehrávanie. Môže to chvíľu trvať.</string>
+    <string name="missing_location">Toto médium je uložené na nedostupnom úložisku a nemožno ho prehrať.</string>
 
     <string name="search">Vyhľadať</string>
 
@@ -456,6 +459,9 @@
     <string name="subtitles_prefs_category">Titulky</string>
     <string name="subtitles_size_title">Veľkosť titulkov</string>
     <string name="subtitles_presets_title">Prednastavenia titulkov</string>
+    <string name="subtitles_size_nano">Nano</string>
+    <string name="subtitles_size_micro">Mikro</string>
+    <string name="subtitles_size_smallest">Najmenšie</string>
     <string name="subtitles_size_small">Malé</string>
     <string name="subtitles_size_normal">Normálne</string>
     <string name="subtitles_size_big">Veľké</string>
@@ -653,6 +659,7 @@
     <string name="no_internet_connection">Skontrolujte pripojenie na internet</string>
     <string name="retry">Opakovať</string>
     <string name="open_subs_download_error">Portál OpenSubtitles je momentálne nedostupný. Skúste to neskôr, prosím</string>
+    <string name="open_subs_download_link_error">Došlo k problému s portálom OpenSubtitles. Skúste to neskôr, prosím</string>
 
     <string name="network_browsing">Lokálna sieť</string>
     <string name="browsing">Prehliadanie</string>
@@ -1357,6 +1364,12 @@
     <string name="ra_otp_title">Pokus o prihlásenie pre vzdialený prístup</string>
     <string name="ra_otp_subtitle">Ak je vaše, zadajte na inom zariadení tento kód</string>
     <string name="ra_otp_not_me">Nie je moje</string>
+    <string name="ra_output">Výstup zvuku</string>
+    <string name="ra_play_on_browser">Prehrávať v prehliadači</string>
+    <string name="ra_play_on_device">Prehrávať na zariadení</string>
+    <string name="ra_browser_audio_not_found">Médium sa nenašlo alebo ho nemožno prehrať v prehliadači</string>
+    <string name="ra_browser_audio_unsupported_format">Váš prehliadač nepodporuje tento výstup zvuku</string>
+    <string name="ra_upload_subtitle">Odoslať titulky</string>
 
     <string name="ra_onboarding_welcome_desc">Vitajte v sekcii pre vzdialený prístup k VLC for Android\nPo zapnutí týchto volieb budete môcť ovládania prehrávania v zariadení a mnoho iného</string>
     <string name="ra_onboarding_how_title">Ovládanie vášho zariadenia</string>
