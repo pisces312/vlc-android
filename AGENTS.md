@@ -140,6 +140,17 @@ unzip -q gradle-9.6.1-bin.zip -d /d/dev/   # → /d/dev/gradle-9.6.1
 | `https://mirrors.aliyun.com/gradle/` | 404，不可用 |
 | 清华 `mirrors.tuna.tsinghua.edu.cn/gradle/` | 404，不可用 |
 
-## 10. 相关文档
+## 10. 隐私基线（改动依赖时需复查）
+
+已审计版本 3.7.2，结论为**低风险**：无广告/追踪/遥测 SDK，无 Google Play Services（唯一的 Google 依赖是 `com.google.android.material`），无崩溃上报，不获取设备标识符。
+
+新增依赖时必须确认不引入追踪类 SDK（gms / firebase / facebook / appsflyer / umeng / adjust / crashlytics / amplitude / flurry 等），并保持以下现状：
+
+- 不引入 `com.google.android.gms` 系列依赖；源码中现有的 gms 字符串仅为 Intent action 与 Android Auto metadata 常量，无 SDK、无网络行为
+- `donations` 模块不进 app 依赖（避免引入 `com.android.vending.BILLING`）
+- `moviepedia` 的 `MOVIEPEDIA_API_URL` 默认回退为 `https://localhost/`，本地构建不配置 `moviepedia_api_url`，元数据刮削不会外发
+
+## 11. 相关文档
 
 - `BUILD-GUIDE.md` —— 详细的构建步骤、签名命令、构建类型说明与隐私审计结论
+- `D:\workspace\vlc-android-privacy-audit_3.7.2_2026-10-19.md` —— 3.7.2 的 Google 服务与隐私风险审计（权限清单、dex 扫描、网络访问点）
