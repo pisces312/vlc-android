@@ -2,8 +2,8 @@
 
 ## 项目信息
 - **仓库**: videolan/vlc-android (已 fork 到 pisces312/vlc-android)
-- **本地路径**: `D:\nili\3rd_party_projects\vlc-android`
-- **版本**: 3.7.1 Beta 2
+- **本地路径**: `D:\3rd-party-projects\vlc-android`
+- **版本**: 3.7.2
 - **许可证**: GNU GPL v2
 - **构建方式**: JVM Build (从 Maven 下载预编译 LibVLC，不编译原生库)
 
@@ -11,22 +11,26 @@
 
 | 组件 | 版本 |
 |------|------|
-| Gradle | 9.4.1 (本地安装) |
-| AGP | 8.13.2 |
-| Kotlin | 2.1.20 |
+| Gradle | 9.6.0 (本地安装 `D:\dev\gradle-9.6.0\bin\gradle`) |
+| AGP | 9.4.1 |
+| Kotlin | 2.2.10 |
 | compileSdk / targetSdk | 36 |
 | JDK | 21 |
-| Android SDK | `D:\nili\dev\android_sdk` |
+| Android SDK | `D:\dev\android_sdk` |
 
 ## 构建前准备
 
 ### 1. 创建 local.properties (指向 Android SDK)
 
-**路径**: `D:\nili\3rd_party_projects\vlc-android\local.properties`
+**路径**: `D:\3rd-party-projects\vlc-android\local.properties`
 
 ```properties
-sdk.dir=D:\\nili\\dev\\android_sdk
+sdk.dir=D:\\dev\\android_sdk
 ```
+
+> 注意: 本仓库**不含 gradle wrapper**（上游已移除），必须显式调用本地 Gradle:
+> `D:\dev\gradle-9.6.0\bin\gradle`。AGP 9.4.1 的最低 Gradle 要求为 9.6.0。
+> Git Bash 下需 `export MSYS_NO_PATHCONV=1`，避免 `a:b` 形式的参数被误做路径转换。
 
 ### 2. 创建 stub 占位模块 (libvlcjni/libvlc 和 medialibrary)
 
@@ -71,8 +75,8 @@ android {
 ### Debug 构建
 
 ```powershell
-Set-Location D:\nili\3rd_party_projects\vlc-android
-gradle assembleDebug --no-daemon
+Set-Location D:\3rd-party-projects\vlc-android
+D:\dev\gradle-9.6.0\bin\gradle assembleDebug --no-daemon
 ```
 
 **构建结果**:
@@ -86,25 +90,24 @@ gradle assembleDebug --no-daemon
 ### Release 构建
 
 ```powershell
-Set-Location D:\nili\3rd_party_projects\vlc-android
-gradle assembleRelease --no-daemon
+Set-Location D:\3rd-party-projects\vlc-android
+D:\dev\gradle-9.6.0\bin\gradle assembleRelease --no-daemon
 ```
 
-**构建结果**:
+**构建结果 (2026-10-19)**:
 - 状态: BUILD SUCCESSFUL
-- 耗时: 8分3秒
-- 任务数: 519 (507 executed, 12 up-to-date)
+- Gradle 9.6.0 + AGP 9.4.1
 - **输出 APK (按 ABI 分拆)**:
 
 | APK 文件名 | 大小 |
 |-------------|------|
-| `VLC-Android-3.7.1-Beta-2-arm64-v8a.apk` | 45.58 MB |
-| `VLC-Android-3.7.1-Beta-2-armeabi-v7a.apk` | 44.70 MB |
-| `VLC-Android-3.7.1-Beta-2-x86.apk` | 45.74 MB |
-| `VLC-Android-3.7.1-Beta-2-x86_64.apk` | 46.97 MB |
+| `VLC-Android-3.7.2-arm64-v8a.apk` | 47.1 MB (49,404,533 B) |
+| `VLC-Android-3.7.2-armeabi-v7a.apk` | 45.6 MB (47,808,825 B) |
+| `VLC-Android-3.7.2-x86.apk` | 47.1 MB (49,354,977 B) |
+| `VLC-Android-3.7.2-x86_64.apk` | 48.8 MB (51,222,125 B) |
 
-- APK 位置: `D:\nili\3rd_party_projects\vlc-android\application\app\build\outputs\apk\release\`
-- **签名状态**: 未签名
+- APK 位置: `D:\3rd-party-projects\vlc-android\application\app\build\outputs\apk\release\`
+- **签名状态**: 未签名 → 签名后输出至同目录 `signed\`
 
 ## Release APK 签名
 
@@ -113,52 +116,70 @@ Release 构建的 APK 需要签名后才能安装到手机。使用以下步骤�
 ### keystore 文件位置
 
 ```
-C:\nili\my-git-projects\my-backup\backup-settings\vlc-android-release.keystore
+D:\my-projects\my-backup\backup-settings\my-android-release.keystore
 ```
 
-**重要**: 此 keystore 非常重要！用于对 VLC Android Release APK 签名，请妥善保管。
+**重要**: 这是本机通用的 Android release keystore（alias `pisces312`），用于对 VLC Android Release APK 签名，请妥善保管。
+> 历史遗留: 早期曾使用 `vlc-android-release.keystore`(alias `vlc-release`)，已弃用。
 
-### 签名命令 (PowerShell)
+### 签名命令 (Git Bash)
 
-```powershell
-# 签名 Release APK (使用 Python 调用 apksigner，避免 PowerShell 语法问题)
-python -c "
-import subprocess
-subprocess.run([
-    'D:\\nili\\dev\\android_sdk\\build-tools\\37.0.0\\apksigner.bat',
-    'sign',
-    '--ks', 'C:\\nili\\my-git-projects\\my-backup\\backup-settings\\vlc-android-release.keystore',
-    '--ks-pass', 'pass:vlc2026release',
-    '--key-pass', 'pass:vlc2026release',
-    '--out', 'D:\\nili\\3rd_party_projects\\vlc-android\\application\\app\\build\\outputs\\apk\\release\\VLC-Android-3.7.1-Beta-2-arm64-v8a-signed.apk',
-    'D:\\nili\\3rd_party_projects\\vlc-android\\application\\app\\build\\outputs\\apk\\release\\VLC-Android-3.7.1-Beta-2-arm64-v8a.apk'
-])
-"
+密钥密码不落盘、不进入命令行历史，统一从 `KEY_*` 环境变量读取（apksigner 原生支持 `env:` 语法）：
+
+```bash
+export MSYS_NO_PATHCONV=1
+cd /d/3rd-party-projects/vlc-android/application/app/build/outputs/apk/release
+mkdir -p signed
+for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+  "/d/dev/android_sdk/build-tools/36.0.0/apksigner.bat" sign \\
+    --ks "${KEY_STORE}" --ks-key-alias "${KEY_ALIAS}" \\
+    --ks-pass env:KEY_STORE_PASSWORD --key-pass env:KEY_PASSWORD \\
+    --out "signed\\VLC-Android-3.7.2-${abi}.apk" "VLC-Android-3.7.2-${abi}.apk"
+done
 ```
+
+使用的环境变量（已在系统/用户级配置）：
+
+| 变量名 | 用途 |
+|--------|------|
+| `KEY_STORE` / `KEY_STORE_LOCATION` | keystore 文件路径 |
+| `KEY_ALIAS` | key alias (`pisces312`) |
+| `KEY_STORE_PASSWORD` | store 密码 |
+| `KEY_PASSWORD` | key 密码 |
+
+### 验证签名
+
+```bash
+"/d/dev/android_sdk/build-tools/36.0.0/apksigner.bat" verify -v --print-certs signed/*.apk
+```
+
+预期输出: `Verifies`，且 v1/v2/v3 scheme 均为 `true`，证书 DN 为 `CN=pisces312, O=pisces312`。
+
+> 说明: `apksigner verify` 会输出若干 `META-INF/... not protected by signature` WARNING（AGP 写入的构建元数据与 netty native-image 配置）。这是 VLC 官方构建同样存在的正常现象，不影响安装与校验，可忽略。
 
 或简化为**已签名的完整构建命令** (Gradle 自动签名):
 
-1. 在项目根目录创建或编辑 `gradle.properties`:
+1. 在项目根目录的 `gradle.properties` 追加:
 ```properties
-keyStoreFile=C:/nili/my-git-projects/my-backup/backup-settings/vlc-android-release.keystore
-storealias=vlc-release
-storepwd=vlc2026release
+keyStoreFile=D:/my-projects/my-backup/backup-settings/my-android-release.keystore
+storealias=pisces312
 ```
 
-2. 构建签名 APK:
+2. 构建签名 APK（密码走 `PASSWORD_KEYSTORE` 环境变量，避免明文入库）:
 ```powershell
-Set-Location D:\nili\3rd_party_projects\vlc-android
-gradle assembleSignedRelease --no-daemon
+$env:PASSWORD_KEYSTORE = $env:KEY_STORE_PASSWORD
+Set-Location D:\3rd-party-projects\vlc-android
+D:\dev\gradle-9.6.0\bin\gradle assembleSignedRelease --no-daemon
 ```
 
 ### keystore 详细信息
 
 | 项目 | 值 |
 |------|-----|
-| keystore 文件 | `vlc-android-release.keystore` |
-| 存储位置 | `C:\nili\my-git-projects\my-backup\backup-settings\` |
-| alias | `vlc-release` |
-| 密码 | `vlc2026release` |
+| keystore 文件 | `my-android-release.keystore` |
+| 存储位置 | `D:\my-projects\my-backup\backup-settings\` |
+| alias | `pisces312` |
+| 密码 | 环境变量 `KEY_STORE_PASSWORD`（不写入文件） |
 | 密钥算法 | RSA 2048-bit |
 | 有效期 | 10000 天 |
 | DN (签发者) | `CN=VLC Android, OU=VideoLAN, O=VideoLAN Association, L=Paris, ST=France, C=FR` |
