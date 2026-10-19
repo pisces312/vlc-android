@@ -11,7 +11,7 @@
 
 | 组件 | 版本 |
 |------|------|
-| Gradle | 9.6.0 (本地安装 `D:\dev\gradle-9.6.0\bin\gradle`) |
+| Gradle | 9.6.1 (本地安装 `D:\dev\gradle-9.6.1\bin\gradle`) |
 | AGP | 9.4.1 |
 | Kotlin | 2.2.10 |
 | compileSdk / targetSdk | 36 |
@@ -29,7 +29,10 @@ sdk.dir=D:\\dev\\android_sdk
 ```
 
 > 注意: 本仓库**不含 gradle wrapper**（上游已移除），必须显式调用本地 Gradle:
-> `D:\dev\gradle-9.6.0\bin\gradle`。AGP 9.4.1 的最低 Gradle 要求为 9.6.0。
+> `D:\dev\gradle-9.6.1\bin\gradle`。AGP 9.4.1 的最低 Gradle 要求为 9.6.0。
+>
+> **只构建 arm64-v8a**: `application/app/build.gradle` 的 `splits.abi.include` 已由上游的四 ABI 收敛为 `include "arm64-v8a"`，
+> Release 只产出单个 APK。同步上游时该处改动需保留（ours）。
 > Git Bash 下需 `export MSYS_NO_PATHCONV=1`，避免 `a:b` 形式的参数被误做路径转换。
 
 ### 2. 创建 stub 占位模块 (libvlcjni/libvlc 和 medialibrary)
@@ -76,7 +79,7 @@ android {
 
 ```powershell
 Set-Location D:\3rd-party-projects\vlc-android
-D:\dev\gradle-9.6.0\bin\gradle assembleDebug --no-daemon
+D:\dev\gradle-9.6.1\bin\gradle assembleDebug --no-daemon
 ```
 
 **构建结果**:
@@ -91,20 +94,17 @@ D:\dev\gradle-9.6.0\bin\gradle assembleDebug --no-daemon
 
 ```powershell
 Set-Location D:\3rd-party-projects\vlc-android
-D:\dev\gradle-9.6.0\bin\gradle assembleRelease --no-daemon
+D:\dev\gradle-9.6.1\bin\gradle assembleRelease --no-daemon
 ```
 
 **构建结果 (2026-10-19)**:
 - 状态: BUILD SUCCESSFUL
-- Gradle 9.6.0 + AGP 9.4.1
-- **输出 APK (按 ABI 分拆)**:
+- Gradle 9.6.1 + AGP 9.4.1，耗时约 5 分 3 秒（498 tasks）
+- **输出 APK (仅 arm64-v8a)**:
 
 | APK 文件名 | 大小 |
 |-------------|------|
 | `VLC-Android-3.7.2-arm64-v8a.apk` | 47.1 MB (49,404,533 B) |
-| `VLC-Android-3.7.2-armeabi-v7a.apk` | 45.6 MB (47,808,825 B) |
-| `VLC-Android-3.7.2-x86.apk` | 47.1 MB (49,354,977 B) |
-| `VLC-Android-3.7.2-x86_64.apk` | 48.8 MB (51,222,125 B) |
 
 - APK 位置: `D:\3rd-party-projects\vlc-android\application\app\build\outputs\apk\release\`
 - **签名状态**: 未签名 → 签名后输出至同目录 `signed\`
@@ -130,7 +130,7 @@ D:\my-projects\my-backup\backup-settings\my-android-release.keystore
 export MSYS_NO_PATHCONV=1
 cd /d/3rd-party-projects/vlc-android/application/app/build/outputs/apk/release
 mkdir -p signed
-for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+for abi in arm64-v8a; do
   "/d/dev/android_sdk/build-tools/36.0.0/apksigner.bat" sign \\
     --ks "${KEY_STORE}" --ks-key-alias "${KEY_ALIAS}" \\
     --ks-pass env:KEY_STORE_PASSWORD --key-pass env:KEY_PASSWORD \\
@@ -169,7 +169,7 @@ storealias=pisces312
 ```powershell
 $env:PASSWORD_KEYSTORE = $env:KEY_STORE_PASSWORD
 Set-Location D:\3rd-party-projects\vlc-android
-D:\dev\gradle-9.6.0\bin\gradle assembleSignedRelease --no-daemon
+D:\dev\gradle-9.6.1\bin\gradle assembleSignedRelease --no-daemon
 ```
 
 ### keystore 详细信息
@@ -189,7 +189,7 @@ D:\dev\gradle-9.6.0\bin\gradle assembleSignedRelease --no-daemon
 | 构建类型 | 命令 | 说明 |
 |----------|------|------|
 | debug | `assembleDebug` | 调试版本，包含所有 ABI，后缀 .debug |
-| release | `assembleRelease` | 发布版本，按 ABI 分拆，未签名 |
+| release | `assembleRelease` | 发布版本，仅 arm64-v8a，未签名 |
 | signedRelease | `assembleSignedRelease` | 签名发布版本，需配置 gradle.properties |
 | vlcBundle | `assembleVlcBundle` | Bundle 版本，minSdk=30 |
 | dev | `assembleDev` | 开发版本，含原生编译 (需 Linux) |
@@ -202,7 +202,7 @@ D:\dev\gradle-9.6.0\bin\gradle assembleSignedRelease --no-daemon
 4. **完整构建**: 需要 Linux 环境，Windows 仅支持 JVM Build
 5. **Debug vs Release APK 差异**:
    - Debug 生成单个 fat APK (包含所有 ABI)，121.34 MB
-   - Release 按 ABI 分拆生成 4 个 APK，每个约 45-47 MB
+   - Release 只生成 arm64-v8a 一个 APK，约 47 MB（上游默认会出 4 个 ABI，本地已收敛）
 6. **Release APK 未签名**: 需用 `apksigner` 签名后才能安装（见上方签名命令）
 
 ## 隐私安全审计

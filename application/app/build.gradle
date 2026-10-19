@@ -129,7 +129,8 @@ android {
             }
             enable = isReleaseBuild
             reset()
-            include "x86", "x86_64", "armeabi-v7a", "arm64-v8a"
+            // Local customization: only build arm64-v8a (upstream ships x86, x86_64, armeabi-v7a too)
+            include "arm64-v8a"
 //            universalApk !isReleaseBuild
         }
     }
