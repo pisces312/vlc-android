@@ -389,20 +389,6 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
         if (isPlaying) PlaybackService.loadLastAudio(service)
     }
 
-    /**
-     * Restart the current media so newly applied per-media options (e.g. video rotation)
-     * take effect, while keeping the playback position.
-     */
-    @MainThread
-    fun reloadCurrentMedia(startTime: Long) {
-        if (!hasCurrentMedia()) return
-        val index = currentIndex
-        launch {
-            player.stop()
-            playIndex(index, forceResume = true, startTimeOverride = startTime)
-        }
-    }
-
     fun stop(systemExit: Boolean = false, video: Boolean = false) {
         clearABRepeat()
         if (stopAfter != -1) Settings.getInstance(AppContextProvider.appContext).putSingle(AUDIO_STOP_AFTER, stopAfter)
@@ -495,7 +481,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
         showAudioPlayer.value = PlayerController.playbackState != PlaybackStateCompat.STATE_STOPPED && (item !== null || !player.isVideoPlaying())
     }
 
-    suspend fun playIndex(index: Int, flags: Int = 0, forceResume:Boolean = false, forceRestart:Boolean = false, startTimeOverride: Long = -1L) {
+    suspend fun playIndex(index: Int, flags: Int = 0, forceResume:Boolean = false, forceRestart:Boolean = false) {
         // The fonts are scanned when the first text renderer is created, which would otherwise
         // delay the playback by several seconds on the first run. See [FontCache]
         // Wait before reading any state, as the queue can change in the meantime
@@ -584,9 +570,8 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
             if (dav1dThreadNumber.isNotEmpty() && dav1dThreadNumber.toInt() >= 1) {
                 media.addOption(":dav1d-thread-frames=$dav1dThreadNumber")
             }
-            val effectiveStart = if (startTimeOverride >= 0L) startTimeOverride else start
             //todo in VLC 4.0, this should be done by using libvlc_media_player_set_time instead of start-time
-            media.addOption(":start-time=${effectiveStart/1000L}")
+            media.addOption(":start-time=${start/1000L}")
             media.addOption(":no-sout-chromecast-video")
             VLCOptions.setMediaOptions(media, ctx, flags or mw.flags, PlaybackService.hasRenderer())
             /* keeping only video during benchmark */
@@ -599,7 +584,7 @@ class PlaylistManager(val service: PlaybackService) : MediaWrapperList.EventList
                 }
             }
             media.setEventListener(this@PlaylistManager)
-            player.startPlayback(media, mediaplayerEventListener, effectiveStart)
+            player.startPlayback(media, mediaplayerEventListener, start)
             player.setSlaves(media, mw)
             if (browserAudioActive) player.setVolume(0)
             newMedia = true

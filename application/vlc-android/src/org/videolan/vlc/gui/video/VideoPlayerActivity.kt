@@ -36,6 +36,7 @@ import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
@@ -56,6 +57,7 @@ import android.view.MotionEvent
 import android.view.PixelCopy
 import android.view.Surface
 import android.view.SurfaceView
+import android.view.TextureView
 import android.view.View
 import android.view.View.OnClickListener
 import android.view.View.OnLongClickListener
@@ -156,7 +158,6 @@ import org.videolan.tools.KEY_SUBTITLE_PREFERRED_LANGUAGE
 import org.videolan.tools.KEY_VIDEO_APP_SWITCH
 import org.videolan.tools.KEY_VIDEO_CONFIRM_RESUME
 import org.videolan.tools.KEY_VIDEO_MATCH_FRAME_RATE
-import org.videolan.tools.KEY_VIDEO_ROTATION
 import org.videolan.tools.LAST_LOCK_ORIENTATION
 import org.videolan.tools.LOCK_USE_SENSOR
 import org.videolan.tools.POPUP_FORCE_LEGACY
@@ -210,6 +211,7 @@ import org.videolan.vlc.gui.helpers.UiTools
 import org.videolan.vlc.gui.helpers.UiTools.addToPlaylist
 import org.videolan.vlc.gui.helpers.UiTools.showPinIfNeeded
 import org.videolan.vlc.gui.helpers.hf.StoragePermissionsDelegate
+import org.videolan.vlc.gui.view.RotatableVideoLayout
 import org.videolan.vlc.interfaces.IPlaybackSettingsController
 import org.videolan.vlc.media.NO_LENGTH_PROGRESS_MAX
 import org.videolan.vlc.media.PlaylistManager
@@ -256,6 +258,11 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     var service: PlaybackService? = null
     lateinit var medialibrary: Medialibrary
     var videoLayout: VLCVideoLayout? = null
+    private var videoRotationLayout: RotatableVideoLayout? = null
+    /** Clockwise rotation of the video in degrees (0/90/180/270), kept for the current playback only. */
+    private var videoRotation = 0
+    /** True while libVLC renders into a TextureView rather than the SurfaceView, see [applyVideoRotation]. */
+    private var usingTextureView = false
     lateinit var displayManager: DisplayManager
     var rootView: View? = null
     var videoUri: Uri? = null
@@ -572,6 +579,7 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         }
 
         videoLayout = findViewById(R.id.video_layout)
+        videoRotationLayout = findViewById(R.id.video_rotation_layout)
 
         /* Loading view */
         loadingImageView = findViewById(R.id.player_overlay_loading)
@@ -629,11 +637,13 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
             savedMediaList = savedInstanceState.parcelableList(KEY_MEDIA_LIST)
             savedMediaIndex = savedInstanceState.getInt(KEY_MEDIA_INDEX)
             val list = savedInstanceState.getBoolean(KEY_LIST, false)
+            videoRotation = savedInstanceState.getInt(KEY_VIDEO_ROTATION_STATE)
             if (list) {
                 intent.removeExtra(PLAY_EXTRA_ITEM_LOCATION)
             } else {
                 videoUri = savedInstanceState.parcelable<Parcelable>(KEY_URI) as Uri?
             }
+            videoRotationLayout?.videoRotation = videoRotation
         }
 
         bookmarkModel = BookmarkModel.get(this)
@@ -834,6 +844,7 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         }
         videoUri = null
         outState.putBoolean(KEY_LIST, overlayDelegate.hasPlaylist)
+        outState.putInt(KEY_VIDEO_ROTATION_STATE, videoRotation)
     }
 
     @TargetApi(Build.VERSION_CODES.O)
@@ -1050,7 +1061,9 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
             }
             val mediaPlayer = mediaplayer
             if (!displayManager.isOnRenderer) videoLayout?.let {
-                mediaPlayer.attachViews(it, displayManager, true, false)
+                // A rotated video needs a TextureView, see applyVideoRotation()
+                usingTextureView = videoRotation != 0
+                mediaPlayer.attachViews(it, displayManager, true, usingTextureView)
                 val size = if (isBenchmark) MediaPlayer.ScaleType.SURFACE_FILL else MediaPlayer.ScaleType.entries[settings.getInt(VIDEO_RATIO, MediaPlayer.ScaleType.SURFACE_BEST_FIT.ordinal)]
                 mediaPlayer.videoScale = size
             }
@@ -1137,6 +1150,12 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         lifecycleScope.launch {
             withContext(Dispatchers.IO) {
                 videoLayout?.findViewById<FrameLayout>(R.id.player_surface_frame)?.let {
+                    if (usingTextureView) {
+                        it.findViewById<TextureView>(R.id.texture_video)?.let { textureView ->
+                            takeRotatedScreenshot(textureView)
+                        }
+                        return@withContext
+                    }
                     val surfaceView = it.findViewById<SurfaceView>(R.id.surface_video)
                     surfaceView?.let { surface ->
                         var width = 0
@@ -1175,6 +1194,35 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
             }
         }
 
+    }
+
+    /**
+     * Used while the video is rotated: frames are rendered into a TextureView, which PixelCopy
+     * cannot read, so the displayed image is grabbed from that view and turned as on screen.
+     *
+     * The turned bitmap has exactly the size of the (visible) area that hosts the video view.
+     */
+    private suspend fun takeRotatedScreenshot(textureView: TextureView) {
+        val frame = withContext(Dispatchers.Main) { textureView.bitmap }
+        if (frame == null) {
+            withContext(Dispatchers.Main) { UiTools.snacker(this@VideoPlayerActivity, R.string.screenshot_error) }
+            return
+        }
+        val bitmap = Bitmap.createBitmap(frame, 0, 0, frame.width, frame.height,
+                Matrix().apply { postRotate(videoRotation.toFloat()) }, true)
+        val simpleDateFormat = SimpleDateFormat("yyyyMMdd_HHmmss")
+        AndroidDevices.MediaFolders.EXTERNAL_PUBLIC_SCREENSHOTS_URI_DIRECTORY.toFile().mkdirs()
+        val dst = File(AndroidDevices.MediaFolders.EXTERNAL_PUBLIC_SCREENSHOTS_URI_DIRECTORY.path + "/vlc_${simpleDateFormat.format(Date())}.jpg")
+        withContext(Dispatchers.Main) {
+            if (BitmapUtil.saveOnDisk(bitmap, dst.absolutePath, publish = true, context = this@VideoPlayerActivity)) {
+                val bounds = IntArray(2)
+                videoRotationLayout?.getLocationOnScreen(bounds)
+                val width = videoRotationLayout?.width ?: bitmap.width
+                val height = videoRotationLayout?.height ?: bitmap.height
+                screenshotDelegate.takeScreenshot(dst, bitmap, bounds, width, height)
+            } else
+                UiTools.snacker(this@VideoPlayerActivity, R.string.screenshot_error)
+        }
     }
 
     private fun cleanUI() {
@@ -1582,6 +1630,8 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
                 MediaPlayer.Event.Paused -> overlayDelegate.updateOverlayPausePlay()
                 MediaPlayer.Event.Opening -> {
                     forcedTime = -1
+                    // Rotation is a per-playback property, don't carry it over to the next video
+                    if (videoRotation != 0) applyVideoRotation(0, showInfo = false)
                     if (!subtitlesExtraPath.isNullOrEmpty()) {
                         service.addSubtitleTrack(subtitlesExtraPath!!, true)
                         subtitlesExtraPath = null
@@ -2119,35 +2169,50 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     fun displayResize() = resizeDelegate.displayResize()
 
     /**
-     * Rotate the rendered video in 90° steps. Rotation is a per-media libVLC option,
-     * so the current media is restarted at the same position to apply it immediately.
+     * Rotate the displayed video by 90° clockwise.
+     *
+     * libVLC 3 can't do it for us: the transform filter has to be enabled on the media player
+     * (a per-media ":video-filter" option is never read by the video output) and libvlc exposes no
+     * API for that. The rotation is therefore a plain View transform, see [RotatableVideoLayout].
      */
-    fun rotateVideo() {
-        val next = when (settings.getInt(KEY_VIDEO_ROTATION, 0)) {
-            0 -> 90
-            90 -> 180
-            180 -> 270
-            else -> 0
-        }
-        applyVideoRotation(next)
-    }
+    fun rotateVideo() = applyVideoRotation((videoRotation + 90) % 360)
 
     fun resetVideoRotation(): Boolean {
         applyVideoRotation(0)
         return true
     }
 
-    private fun applyVideoRotation(rotation: Int) {
-        settings.putSingle(KEY_VIDEO_ROTATION, rotation)
-        val currentService = service ?: return
-        val position = currentService.getTime()
-        currentService.playlistManager.reloadCurrentMedia(position)
-        overlayDelegate.showInfo(when (rotation) {
+    private fun applyVideoRotation(rotation: Int, showInfo: Boolean = true) {
+        if (rotation == videoRotation) return
+        videoRotation = rotation
+        videoRotationLayout?.videoRotation = rotation
+
+        // A SurfaceView is a separate compositor layer that only follows position and size, so it
+        // can't be rotated. Switch to a TextureView while the video is turned.
+        val useTextureView = rotation != 0
+        if (playbackStarted && usingTextureView != useTextureView) switchVideoOutput(useTextureView)
+
+        if (showInfo) overlayDelegate.showInfo(when (rotation) {
             90 -> R.string.video_rotation_90
             180 -> R.string.video_rotation_180
             270 -> R.string.video_rotation_270
             else -> R.string.video_rotation_0
         }, 1000)
+    }
+
+    private fun switchVideoOutput(useTextureView: Boolean) {
+        val mediaPlayer = service?.mediaplayer ?: return
+        val layout = videoLayout ?: return
+        usingTextureView = useTextureView
+        if (displayManager.isOnRenderer || !mediaPlayer.vlcVout.areViewsAttached()) return
+        val surfaceFrame = layout.findViewById<FrameLayout>(R.id.player_surface_frame) ?: return
+
+        mediaPlayer.vlcVout.detachViews()
+        // Hide the views of the output we leave, they would keep showing their last frame
+        surfaceFrame.findViewById<SurfaceView>(R.id.surface_video)?.visibility = if (useTextureView) View.GONE else View.VISIBLE
+        surfaceFrame.findViewById<SurfaceView>(R.id.surface_subtitles)?.visibility = if (useTextureView) View.GONE else View.VISIBLE
+        surfaceFrame.findViewById<TextureView>(R.id.texture_video)?.visibility = if (useTextureView) View.VISIBLE else View.GONE
+        mediaPlayer.attachViews(layout, displayManager, true, useTextureView)
     }
 
     private fun showTitle() {
@@ -2619,6 +2684,7 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         private const val KEY_MEDIA_LIST = "media_list"
         private const val KEY_MEDIA_INDEX = "media_index"
         private const val KEY_URI = "saved_uri"
+        private const val KEY_VIDEO_ROTATION_STATE = "video_rotation"
         const val OVERLAY_INFINITE = -1
         const val FADE_OUT = 1
         const val FADE_OUT_INFO = 2
