@@ -455,20 +455,20 @@ class VideoTouchDelegate(private val player: VideoPlayerActivity,
 
     private fun initBrightnessTouch() {
         val lp = player.window.attributes
+        val contentResolver = player.applicationContext.contentResolver
 
-        //Check if we already have a brightness
-        val brightnesstemp = if (lp.screenBrightness != -1f)
-            lp.screenBrightness
-        else {
-            //Check if the device is in auto mode
-            val contentResolver = player.applicationContext.contentResolver
-            if (Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC) == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC) {
-                //cannot retrieve a value -> 0.5
-                0.5f
-            } else Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128).toFloat() / 255
+        // Always start from the brightness currently set by the system, never from a
+        // hardcoded mid value or from a previously stored window override.
+        // SCREEN_BRIGHTNESS is used on all API levels: even in adaptive mode ROMs keep
+        // it in sync with the slider position the user last set.
+        val brightness = try {
+            Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128).toFloat() / 255f
+        } catch (e: Settings.SettingNotFoundException) {
+            0.5f
         }
 
-        lp.screenBrightness = brightnesstemp
+        // Keep the lower bound in sync with changeBrightness()
+        lp.screenBrightness = brightness.coerceIn(0.01f, 1f)
         player.window.attributes = lp
         isFirstBrightnessGesture = false
     }

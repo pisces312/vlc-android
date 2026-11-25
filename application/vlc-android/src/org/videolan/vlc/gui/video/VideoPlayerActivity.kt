@@ -156,6 +156,7 @@ import org.videolan.tools.KEY_SUBTITLE_PREFERRED_LANGUAGE
 import org.videolan.tools.KEY_VIDEO_APP_SWITCH
 import org.videolan.tools.KEY_VIDEO_CONFIRM_RESUME
 import org.videolan.tools.KEY_VIDEO_MATCH_FRAME_RATE
+import org.videolan.tools.KEY_VIDEO_ROTATION
 import org.videolan.tools.LAST_LOCK_ORIENTATION
 import org.videolan.tools.LOCK_USE_SENSOR
 import org.videolan.tools.POPUP_FORCE_LEGACY
@@ -2116,6 +2117,38 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     fun resizeVideo() = resizeDelegate.resizeVideo()
 
     fun displayResize() = resizeDelegate.displayResize()
+
+    /**
+     * Rotate the rendered video in 90° steps. Rotation is a per-media libVLC option,
+     * so the current media is restarted at the same position to apply it immediately.
+     */
+    fun rotateVideo() {
+        val next = when (settings.getInt(KEY_VIDEO_ROTATION, 0)) {
+            0 -> 90
+            90 -> 180
+            180 -> 270
+            else -> 0
+        }
+        applyVideoRotation(next)
+    }
+
+    fun resetVideoRotation(): Boolean {
+        applyVideoRotation(0)
+        return true
+    }
+
+    private fun applyVideoRotation(rotation: Int) {
+        settings.putSingle(KEY_VIDEO_ROTATION, rotation)
+        val currentService = service ?: return
+        val position = currentService.getTime()
+        currentService.playlistManager.reloadCurrentMedia(position)
+        overlayDelegate.showInfo(when (rotation) {
+            90 -> R.string.video_rotation_90
+            180 -> R.string.video_rotation_180
+            270 -> R.string.video_rotation_270
+            else -> R.string.video_rotation_0
+        }, 1000)
+    }
 
     private fun showTitle() {
         if (isNavMenu) return

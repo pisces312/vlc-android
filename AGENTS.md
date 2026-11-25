@@ -68,11 +68,13 @@ splits {
 # 配置自检（快，约 20s，改完构建脚本先跑这个）
 /d/dev/gradle-9.6.1/bin/gradle projects --no-daemon
 
-# Release 构建（产出未签名 APK，约 5-8 分钟）
-/d/dev/gradle-9.6.1/bin/gradle assembleRelease --no-daemon
+# Debug 构建（全 ABI，用于快速验证 UI 改动；本机实测约 2 分钟）
+/d/dev/gradle-9.6.1/bin/gradle assembleDebug --no-daemon
+# 产物 application/app/build/outputs/apk/debug/
 
-# 产物目录
-# application/app/build/outputs/apk/release/
+# Release 构建（产出未签名 APK，仅 arm64-v8a；本机实测约 2-3 分钟）
+/d/dev/gradle-9.6.1/bin/gradle assembleRelease --no-daemon
+# 产物 application/app/build/outputs/apk/release/
 ```
 
 ## 6. Release 签名
@@ -84,6 +86,17 @@ splits {
 | 密码来源 | 环境变量（**禁止写入文档、命令行或代码**） |
 
 用到的环境变量（已在系统级配置）：`KEY_STORE` / `KEY_STORE_LOCATION`、`KEY_ALIAS`、`KEY_STORE_PASSWORD`、`KEY_PASSWORD`。
+
+> agent / 沙箱 shell **不会继承**上述用户环境变量：直接读 `$env:KEY_STORE_PASSWORD` 为空，**这不代表未配置**。正确做法是用 PowerShell 从 `HKCU:\Environment` 逐项读取并赋给本次进程，再调用 `apksigner`，且**不要打印任何密码值**：
+>
+> ```powershell
+> $env:KEY_STORE = (Get-ItemProperty 'HKCU:\Environment' -Name KEY_STORE).KEY_STORE
+> $env:KEY_ALIAS = (Get-ItemProperty 'HKCU:\Environment' -Name KEY_ALIAS).KEY_ALIAS
+> $env:KEY_STORE_PASSWORD = (Get-ItemProperty 'HKCU:\Environment' -Name KEY_STORE_PASSWORD).KEY_STORE_PASSWORD
+> $env:KEY_PASSWORD = (Get-ItemProperty 'HKCU:\Environment' -Name KEY_PASSWORD).KEY_PASSWORD
+> ```
+>
+> 之后 `apksigner sign --ks-pass env:KEY_STORE_PASSWORD --key-pass env:KEY_PASSWORD ...` 即可复用 Git Bash 下的签名命令。
 
 ```bash
 export MSYS_NO_PATHCONV=1
@@ -114,6 +127,16 @@ done
 - 已知必现冲突及处理原则：
   - `.gitignore` → **取上游**（上游的 `*.keystore` 规则更通用）
   - `medialibrary/build.gradle` → **保留本地 stub（ours）**
+  - `application/app/build.gradle` → 保留 `splits.abi.include "arm64-v8a"`
+  - `AGENTS.md` / `BUILD-GUIDE.md` → 保留本地文档
+  - 下表所列文件 → 保留本地功能定制，逐块人工融合
+
+### 本地功能定制（上游同步时必须保留）
+
+| 功能 | 关键文件 | 约定 |
+|------|----------|------|
+| 亮度手势起点 | `video/VideoTouchDelegate.kt` 的 `initBrightnessTouch()` | 始终以系统当前 `Settings.System.SCREEN_BRIGHTNESS / 255f` 为起点并 `coerceIn(0.01f, 1f)`；不要恢复上游的硬编码 `0.5f` 或复用窗口旧值逻辑。当前 compileSdk 下 `Settings.System.SCREEN_BRIGHTNESS_FLOAT` 不可解析，勿改用。 |
+| 视频旋转按钮 | `video/VideoPlayerActivity.kt`（`rotateVideo` / `resetVideoRotation`）、`video/VideoPlayerOverlayDelegate.kt`、`media/PlaylistManager.kt`（`startTimeOverride` / `reloadCurrentMedia`）、`resources/VLCOptions.kt`、`tools/Settings.kt`（`KEY_VIDEO_ROTATION`）、`res/layout/player_hud.xml`、`drawable/ic_player_video_rotation.xml`、`values*/strings.xml` | 旋转由 per-media `:video-filter=transform` + `:transform-type=90/180/270` 实现，点击 90° 步进、长按复位，角度为全局持久偏好。上游若改动 `PlaylistManager.playIndex()` 签名，需手工融合 `startTimeOverride` 及 `reloadCurrentMedia()`。 |
 
 ## 8. 用户工作习惯
 

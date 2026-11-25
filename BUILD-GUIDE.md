@@ -124,7 +124,19 @@ D:\my-projects\my-backup\backup-settings\my-android-release.keystore
 
 ### 签名命令 (Git Bash)
 
-密钥密码不落盘、不进入命令行历史，统一从 `KEY_*` 环境变量读取（apksigner 原生支持 `env:` 语法）：
+密钥密码不落盘、不进入命令行历史，统一从 `KEY_*` 环境变量读取（apksigner 原生支持 `env:` 语法）。
+
+> **agent / 沙箱环境注意**：本次进程不会继承用户级环境变量，直接读 `$env:KEY_STORE_PASSWORD` 为空属正常现象，**不要据此判定未配置**。先用 PowerShell 从注册表读取并注入本次进程，且不要打印值：
+>
+> ```powershell
+> $env:KEY_STORE = (Get-ItemProperty 'HKCU:\Environment' -Name KEY_STORE).KEY_STORE
+> $env:KEY_ALIAS = (Get-ItemProperty 'HKCU:\Environment' -Name KEY_ALIAS).KEY_ALIAS
+> $env:KEY_STORE_PASSWORD = (Get-ItemProperty 'HKCU:\Environment' -Name KEY_STORE_PASSWORD).KEY_STORE_PASSWORD
+> $env:KEY_PASSWORD = (Get-ItemProperty 'HKCU:\Environment' -Name KEY_PASSWORD).KEY_PASSWORD
+> ```
+>
+> 随后在同一 PowerShell 会话中调用 `apksigner.bat sign --ks-pass env:KEY_STORE_PASSWORD --key-pass env:KEY_PASSWORD ...` 即可。
+
 
 ```bash
 export MSYS_NO_PATHCONV=1

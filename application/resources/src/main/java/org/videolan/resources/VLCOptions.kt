@@ -68,6 +68,7 @@ import org.videolan.tools.KEY_SUBTITLES_SHADOW_COLOR
 import org.videolan.tools.KEY_SUBTITLES_SHADOW_COLOR_OPACITY
 import org.videolan.tools.KEY_SUBTITLES_SIZE
 import org.videolan.tools.KEY_SUBTITLE_TEXT_ENCODING
+import org.videolan.tools.KEY_VIDEO_ROTATION
 import org.videolan.tools.Preferences
 import org.videolan.tools.Settings
 import org.videolan.tools.putSingle
@@ -316,6 +317,15 @@ object VLCOptions {
         if (noVideo) media.addOption(":no-video")
         if (paused) media.addOption(":start-paused")
         if (!prefs.getBoolean(KEY_SUBTITLES_AUTOLOAD, true)) media.addOption(":sub-language=none")
+
+        // Per-media video rotation. Applied to a fresh Media instance so the transform
+        // filter is set up before the vout is created.
+        when (prefs.getInt(KEY_VIDEO_ROTATION, 0)) {
+            90, 180, 270 -> {
+                media.addOption(":video-filter=transform")
+                media.addOption(":transform-type=${prefs.getInt(KEY_VIDEO_ROTATION, 0)}")
+            }
+        }
 
         if (hasRenderer) {
             media.addOption(":sout-chromecast-audio-passthrough=" + prefs.getBoolean(KEY_CASTING_PASSTHROUGH, true))
