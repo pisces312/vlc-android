@@ -298,6 +298,7 @@
     <string name="lock_orientation_description">Tap to lock/unlock orientation</string>
     <string name="video_rotation">Rotate video</string>
     <string name="video_rotation_description">Tap to rotate the video, long press to reset</string>
+    <string name="video_rotation_left_description">Tap to rotate the video counter clockwise, long press to reset</string>
     <string name="video_rotation_0">Original orientation</string>
     <string name="video_rotation_90">Rotated 90°</string>
     <string name="video_rotation_180">Rotated 180°</string>

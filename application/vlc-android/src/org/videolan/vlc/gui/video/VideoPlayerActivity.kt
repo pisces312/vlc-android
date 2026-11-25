@@ -2457,21 +2457,27 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     }
 
     /**
-     * Rotate the picture in 90° steps by rotating the Activity instead of the video view.
+     * Rotate the picture clockwise in 90° steps by rotating the Activity instead of the video view.
      *
      * libVLC 3 has no API to rotate a 2D picture while keeping the opaque SurfaceView output.
      * An orientation change goes through the same code path as system auto rotation: the
      * SurfaceView stays attached, libVLC only receives a new window size, and the decoder
      * isn't restarted. The whole UI rotates together with the video.
      */
-    fun rotateVideo() {
+    fun rotateVideo() = rotateVideoBy(1)
+
+    /** Same as [rotateVideo], counter clockwise. */
+    fun rotateVideoLeft() = rotateVideoBy(-1)
+
+    private fun rotateVideoBy(step: Int) {
         val orientations = intArrayOf(
                 ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
                 ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
                 ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT,
                 ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE)
         val current = orientations.indexOf(orientationMode.orientation)
-        val orientation = orientations[(if (current < 0) 0 else current + 1) % orientations.size]
+        val index = if (current < 0) 0 else (current + step + orientations.size) % orientations.size
+        val orientation = orientations[index]
         setOrientation(orientation)
         overlayDelegate.showInfo(when (orientation) {
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT -> R.string.screen_orientation_portrait

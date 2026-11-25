@@ -959,6 +959,7 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
             }
             hudBinding.orientationToggle.visibility = if (player.isTv || AndroidDevices.isChromeBook) View.INVISIBLE else if (show) View.VISIBLE else View.INVISIBLE
             hudBinding.videoRotationToggle.visibility = hudBinding.orientationToggle.visibility
+            hudBinding.videoRotationToggleLeft.visibility = hudBinding.orientationToggle.visibility
             if (!show) hudBinding.playerOverlaySeekbar.disableAccessibilityEvents() else hudBinding.playerOverlaySeekbar.enableAccessibilityEvents()
         }
         if (::hudRightBinding.isInitialized) {

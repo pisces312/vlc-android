@@ -280,6 +280,7 @@
     <string name="lock_orientation_description">轻按可开启/解除方向锁定</string>
     <string name="video_rotation">旋转画面</string>
     <string name="video_rotation_description">轻按旋转画面，长按恢复原始方向</string>
+    <string name="video_rotation_left_description">轻按反向旋转画面，长按恢复原始方向</string>
     <string name="video_rotation_0">原始方向</string>
     <string name="video_rotation_90">旋转 90°</string>
     <string name="video_rotation_180">旋转 180°</string>
