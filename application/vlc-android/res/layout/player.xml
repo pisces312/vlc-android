@@ -14,17 +14,11 @@
      (which requires the surface not be centered), while keeping the result centered
     -->
 
-    <org.videolan.vlc.gui.view.RotatableVideoLayout
-        android:id="@+id/video_rotation_layout"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <org.videolan.libvlc.util.VLCVideoLayout
+    <org.videolan.libvlc.util.VLCVideoLayout
             android:id="@+id/video_layout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:fitsSystemWindows="false" />
-    </org.videolan.vlc.gui.view.RotatableVideoLayout>
 
 
     <androidx.appcompat.widget.ViewStubCompat
