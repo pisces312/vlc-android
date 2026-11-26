@@ -209,6 +209,7 @@ import org.videolan.vlc.gui.helpers.UiTools
 import org.videolan.vlc.gui.helpers.UiTools.addToPlaylist
 import org.videolan.vlc.gui.helpers.UiTools.showPinIfNeeded
 import org.videolan.vlc.gui.helpers.hf.StoragePermissionsDelegate
+import org.videolan.vlc.gui.helpers.hf.checkPIN
 import org.videolan.vlc.interfaces.IPlaybackSettingsController
 import org.videolan.vlc.media.NO_LENGTH_PROGRESS_MAX
 import org.videolan.vlc.media.PlaylistManager
@@ -1985,6 +1986,7 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
     override fun onClick(v: View) {
         when (v.id) {
             R.id.orientation_toggle -> toggleOrientationLock()
+            R.id.player_lock_button -> if (isLocked) requestUnlock() else toggleLock()
             R.id.playlist_toggle -> overlayDelegate.togglePlaylist()
             R.id.player_overlay_forward -> {
                 jump(forward = true, long = false)
@@ -2076,6 +2078,18 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback, 
         else
             overlayDelegate.lockScreen()
         overlayDelegate.updateRendererVisibility()
+    }
+
+    /**
+     * Unlock from the lock button, asking for the PIN first when safe mode is enabled.
+     */
+    private fun requestUnlock() {
+        lifecycleScope.launch {
+            if (checkPIN()) {
+                overlayDelegate.unlockScreen()
+                overlayDelegate.updateRendererVisibility()
+            }
+        }
     }
 
     override fun onStorageAccessGranted() {

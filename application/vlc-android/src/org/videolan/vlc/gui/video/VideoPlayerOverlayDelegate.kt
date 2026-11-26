@@ -142,6 +142,7 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
 
     private val hudBackground: View? by lazy { player.findViewById(R.id.hud_background) }
     private val hudRightBackground: View? by lazy { player.findViewById(R.id.hud_right_background) }
+    private val lockButton: ImageView? by lazy(LazyThreadSafetyMode.NONE) { player.findViewById(R.id.player_lock_button) }
 
     private lateinit var abRepeatAddMarker: Button
 
@@ -936,8 +937,50 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
         if (player.isTalkbackIsEnabled()) playlistSearchText.editText?.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
     }
 
+    /**
+     * Show or hide the screen lock button, which follows the HUD visibility.
+     * Its icon reflects the current lock state.
+     */
+    private fun updateLockButtonVisibility(show: Boolean) {
+        val button = lockButton ?: return
+        if (!show || player.isTv || player.isInPictureInPictureMode) {
+            hideLockButton()
+            return
+        }
+        updateLockButtonIcon()
+        button.visibility = View.VISIBLE
+    }
+
+    private fun updateLockButtonIcon() {
+        val button = lockButton ?: return
+        button.setImageResource(if (player.isLocked) R.drawable.ic_lock_player_locked else R.drawable.ic_lock_player)
+        button.contentDescription = player.getString(if (player.isLocked) R.string.unlock else R.string.lock)
+    }
+
+    private val lockButtonHideRunnable = Runnable { lockButton?.visibility = View.GONE }
+
+    /**
+     * Reveal the lock button while the player is locked. Any touch on the screen shows it,
+     * and it hides itself again after the HUD delay.
+     */
+    fun showLockButton() {
+        if (!player.isLocked || player.isTv || player.isInPictureInPictureMode) return
+        val button = lockButton ?: return
+        updateLockButtonIcon()
+        button.visibility = View.VISIBLE
+        player.handler.removeCallbacks(lockButtonHideRunnable)
+        val delay = Settings.videoHudDelay
+        if (delay >= 0) player.handler.postDelayed(lockButtonHideRunnable, delay * 1000L)
+    }
+
+    private fun hideLockButton() {
+        player.handler.removeCallbacks(lockButtonHideRunnable)
+        lockButton?.visibility = View.GONE
+    }
+
     fun showControls(show: Boolean) {
         if (show && player.isInPictureInPictureMode) return
+        updateLockButtonVisibility(show)
         if (::hudBinding.isInitialized) {
             hudBinding.playerOverlayPlay.visibility = if (show) View.VISIBLE else View.INVISIBLE
             if (seekButtons) {
@@ -1058,7 +1101,7 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
             hudBinding.playerOverlayLength.isEnabled = false
             hudBinding.playlistNext.isEnabled = false
             hudBinding.playlistPrevious.isEnabled = false
-            hudBinding.swipeToUnlock.setVisible()
+            if (player.isTv) hudBinding.swipeToUnlock.setVisible() else hudBinding.swipeToUnlock.setGone()
             //make sure the title and unlock views are not conflicting with the cutout / gestures
             (playerUiContainer.layoutParams as? FrameLayout.LayoutParams)?.let {
                 if (AndroidUtil.isPOrLater) {
@@ -1077,6 +1120,7 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
         hideOverlay(true)
         player.lockBackButton = true
         player.isLocked = true
+        showLockButton()
         updateOrientationIcon()
         updateScreenshotButton()
     }
@@ -1085,6 +1129,7 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
      * Remove player lock
      */
     fun unlockScreen() {
+        hideLockButton()
         (playerUiContainer.layoutParams as? FrameLayout.LayoutParams)?.let {
             it.topMargin = 0
             it.bottomMargin = 0
@@ -1092,6 +1137,7 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
         player.orientationMode.locked = orientationLockedBeforeLock
         player.requestedOrientation = player.getScreenOrientation(player.orientationMode)
         if (isHudBindingInitialized()) {
+            hudBinding.swipeToUnlock.setGone()
             hudBinding.playerOverlayTime.isEnabled = true
             hudBinding.playerOverlaySeekbar.isEnabled = player.service?.isSeekable != false
             hudBinding.playerOverlayLength.isEnabled = true
